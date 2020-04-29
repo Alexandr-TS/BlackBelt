@@ -27,6 +27,24 @@ namespace TestRunnerPrivate {
         }
         return os << "}";
     }
+
+    template <
+        typename K,
+        typename V
+    >
+        std::ostream& PrintMap(std::ostream& os, const std::map<K, V>& m) {
+        os << "{";
+        bool first = true;
+        for (const auto& kv : m) {
+            if (!first) {
+                os << ", ";
+            }
+            first = false;
+            os << kv.first << ": " << kv.second;
+        }
+        return os << "}";
+    }
+
 }
 
 template <class T>
