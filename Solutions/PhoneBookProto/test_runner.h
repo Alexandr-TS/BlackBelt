@@ -5,6 +5,8 @@
 #include <iostream>
 #include <map>
 #include <unordered_map>
+#include <optional>
+#include <functional>
 #include <set>
 #include <string>
 #include <vector>
@@ -147,7 +149,7 @@ private:
   std::ostringstream __assert_private_os;     \
   __assert_private_os << #x << " is false, "  \
     << FILE_NAME << ":" << __LINE__;          \
-  Assert(x, __assert_private_os.str());       \
+  Assert(static_cast<bool>(x), __assert_private_os.str());       \
 }
 
 #define RUN_TEST(tr, func) \
