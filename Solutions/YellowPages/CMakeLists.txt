@@ -20,3 +20,5 @@ protobuf_generate_cpp(
 
 add_executable(CourseraBlackBelt ${PROTO_SRCS} ${PROTO_HDRS} "test.cpp" "merge.cpp" "test_runner.h" "yellow_pages.h")
 target_link_libraries(CourseraBlackBelt ${Protobuf_LIBRARIES})
+
+# set_target_properties(CourseraBlackBelt PROPERTIES COMPILE_FLAGS "-Wpadded")
