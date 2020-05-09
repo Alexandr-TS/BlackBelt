@@ -122,21 +122,42 @@ namespace Parse {
 
         template <typename T>
         const T& Expect() const {
+            if (CurrentToken().Is<T>()) {
+                return CurrentToken().As<T>();
+            }
+            else {
+                throw LexerError("Incorrect type");
+            }
         }
 
         template <typename T, typename U>
         void Expect(const U& value) const {
+			const auto& cur_token = CurrentToken();
+            if (cur_token.Is<T>() && cur_token.As<T>().value == value) {
+                return;
+            }
+			throw LexerError("Incorrect type or value");
         }
 
         template <typename T>
         const T& ExpectNext() {
+            const auto& cur_token = NextToken();
+            return Expect<T>();
         }
 
         template <typename T, typename U>
         void ExpectNext(const U& value) {
+            const auto& cur_token = NextToken();
+            Expect<T, U>(value);
         }
 
     private:
+        int last_indent = 0;
+        int balance_indent = 0;
+        bool is_new_line = true;
+        bool input_ended = false;
+        std::istream& is;
+        Token token;
     };
 
     void RunLexerTests(TestRunner& test_runner);
