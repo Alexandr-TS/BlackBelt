@@ -40,6 +40,7 @@ struct VariableValue : Statement {
   explicit VariableValue(std::string var_name);
   explicit VariableValue(std::vector<std::string> dotted_ids);
   ObjectHolder Execute(Runtime::Closure& closure) override;
+  string GetFullName();
 };
 
 struct Assignment : Statement {
