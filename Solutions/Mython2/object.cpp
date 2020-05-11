@@ -43,15 +43,13 @@ ObjectHolder ClassInstance::Call(const std::string& method, const std::vector<Ob
 		return ObjectHolder::None();
 	}
 
+	Closure args = { {"self", ObjectHolder::Share(*this)} };
+
 	for (size_t i = 0; i < method_ptr->formal_params.size(); ++i) {
-		fields[method_ptr->formal_params[i]] = actual_args[i];
+		args[method_ptr->formal_params[i]] = actual_args[i];
 	}
 
-	auto result = method_ptr->body->Execute(fields);
-	for (size_t i = 0; i < method_ptr->formal_params.size(); ++i) {
-		fields.erase(method_ptr->formal_params[i]);
-	}
-	return result;
+	return method_ptr->body->Execute(args);
 }
 
 Class::Class(std::string name, std::vector<Method>&& methods, const Class* parent) 

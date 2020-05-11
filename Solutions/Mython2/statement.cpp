@@ -40,13 +40,6 @@ string VariableValue::GetFullName() {
 }
 
 ObjectHolder VariableValue::Execute(Closure& closure) {
-    string full_name = GetFullName();
-    if (!closure.count(full_name)) {
-        throw runtime_error(("unknown variable " + full_name).c_str());
-    }
-    return closure[full_name];
-
-    /*
     Closure* cur_closure = &closure;
     for (size_t i = 0; i + 1 < dotted_ids.size(); ++i) {
         if (!(*cur_closure).count(dotted_ids[i])) {
@@ -54,8 +47,10 @@ ObjectHolder VariableValue::Execute(Closure& closure) {
         }
         cur_closure = &((*cur_closure)[dotted_ids[i]].TryAs<Runtime::ClassInstance>()->Fields());
     }
+    if (!(*cur_closure).count(dotted_ids.back())) {
+        throw runtime_error(("unknown var name: " + dotted_ids.back()).c_str());
+    }
     return (*cur_closure)[dotted_ids.back()];
-    */
 }
 
 unique_ptr<Print> Print::Variable(std::string var) {
@@ -66,15 +61,20 @@ Print::Print(unique_ptr<Statement>&& argument) {
     args.emplace_back(move(argument));
 }
 
-Print::Print(vector<unique_ptr<Statement>> args)
+Print::Print(vector<unique_ptr<Statement>>&& args)
     : args(move(args))
 {
 }
 
 ObjectHolder Print::Execute(Closure& closure) {
-    for (const auto& arg : args) {
-        arg->Execute(closure)->Print(*output);
+    for (size_t i = 0; i < args.size(); ++i) {
+        Stringify str(move(args[i]));
+        str.Execute(closure)->Print(*output);
+        if (i + 1 < args.size()) {
+            (*output) << " ";
+        }
     }
+    (*output) << "\n";
     // check return value
     return ObjectHolder::None();
 }
@@ -97,13 +97,16 @@ MethodCall::MethodCall(
 }
 
 ObjectHolder MethodCall::Execute(Closure& closure) {
-    // check, todo
-    return ObjectHolder::None();
+    using namespace Runtime;
+    vector<ObjectHolder> executed_args;
+    for (auto& arg : args) {
+        executed_args.emplace_back(move(arg->Execute(closure)));
+    }
+    return object->Execute(closure).TryAs<Runtime::ClassInstance>()->Call(method, executed_args);
 }
 
-ObjectHolder Stringify::Execute(Closure& closure) {
+ObjectHolder StringifyReturn(ObjectHolder& val) {
     using namespace Runtime;
-    auto val = argument->Execute(closure);
     if (val.TryAs<String>()) {
         return ObjectHolder::Own(Runtime::String(val.TryAs<String>()->GetValue()));
     }
@@ -123,7 +126,8 @@ ObjectHolder Stringify::Execute(Closure& closure) {
     else if (val.TryAs<ClassInstance>()) {
         const auto ptr = val.TryAs<ClassInstance>();
         if (ptr->HasMethod("__str__", 0)) {
-            return ptr->Call("__str__", {});
+            auto res = ptr->Call("__str__", {});
+            return StringifyReturn(res);
         }
         else {
             ostringstream os;
@@ -135,6 +139,12 @@ ObjectHolder Stringify::Execute(Closure& closure) {
     else {
         throw runtime_error("stringify error - undefined object");
     }
+}
+
+ObjectHolder Stringify::Execute(Closure& closure) {
+    using namespace Runtime;
+    auto val = argument->Execute(closure);
+    return StringifyReturn(val);
 }
 
 ObjectHolder Add::Execute(Closure& closure) {
@@ -152,6 +162,12 @@ ObjectHolder Add::Execute(Closure& closure) {
             tl.TryAs<String>()->GetValue() +
             tr.TryAs<String>()->GetValue()
         ));
+    }
+    if (tl.TryAs<ClassInstance>()) {
+        auto obj = tl.TryAs<ClassInstance>();
+        if (obj->HasMethod("__add__", 1)) {
+            return obj->Call("__add__", { tr });
+        }
     }
     throw runtime_error("Incorrect addition");
 }
@@ -200,7 +216,13 @@ ObjectHolder Div::Execute(Runtime::Closure& closure) {
 
 ObjectHolder Compound::Execute(Closure& closure) {
     for (const auto& element : statements) {
-        element->Execute(closure);
+        auto result = element->Execute(closure);
+        if (dynamic_cast<Return*>(element.get()) && result) {
+            return result;
+        }
+        if (dynamic_cast<IfElse*>(element.get()) && result) {
+            return result;
+        }
     }
     return ObjectHolder::None();
 }
@@ -231,8 +253,11 @@ FieldAssignment::FieldAssignment(
 }
 
 ObjectHolder FieldAssignment::Execute(Runtime::Closure& closure) {
-    auto full_name = object.GetFullName() + "." + field_name;
-    return closure[full_name] = right_value->Execute(closure);
+    ObjectHolder cur_obj_holder = closure[object.dotted_ids[0]];
+    for (size_t i = 1; i < object.dotted_ids.size(); ++i) {
+        cur_obj_holder = cur_obj_holder.TryAs<Runtime::ClassInstance>()->Fields()[object.dotted_ids[i]];
+    }
+    return cur_obj_holder.TryAs<Runtime::ClassInstance>()->Fields()[field_name] = right_value->Execute(closure);
 }
 
 IfElse::IfElse(
@@ -252,6 +277,9 @@ ObjectHolder IfElse::Execute(Runtime::Closure& closure) {
         return if_body->Execute(closure);
     }
     else {
+        if (!else_body) {
+            return ObjectHolder::None();
+        }
         return else_body->Execute(closure);
     }
 }
@@ -309,7 +337,16 @@ NewInstance::NewInstance(const Runtime::Class& class_) : NewInstance(class_, {})
 }
 
 ObjectHolder NewInstance::Execute(Runtime::Closure& closure) {
-    return ObjectHolder::Own(Runtime::ClassInstance(class_));
+    using namespace Runtime;
+    auto result = ObjectHolder::Own(Runtime::ClassInstance(class_));
+    if (result.TryAs<ClassInstance>()->HasMethod("__init__", args.size())) {
+        vector<ObjectHolder> ctor_args;
+        for (auto& arg : args) {
+            ctor_args.emplace_back(arg->Execute(closure));
+        }
+        result.TryAs<ClassInstance>()->Call("__init__", ctor_args);
+    }
+    return result;
 }
 
 

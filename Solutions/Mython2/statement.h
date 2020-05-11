@@ -69,7 +69,7 @@ struct None : Statement {
 class Print : public Statement {
 public:
   explicit Print(std::unique_ptr<Statement>&& argument);
-  explicit Print(std::vector<std::unique_ptr<Statement>> args);
+  explicit Print(std::vector<std::unique_ptr<Statement>>&& args);
 
   static std::unique_ptr<Print> Variable(std::string name);
 
