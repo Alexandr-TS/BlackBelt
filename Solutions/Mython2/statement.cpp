@@ -11,30 +11,43 @@ namespace Ast {
 using Runtime::Closure;
 
 ObjectHolder Assignment::Execute(Closure& closure) {
+    // todo
 }
 
 Assignment::Assignment(std::string var, std::unique_ptr<Statement> rv) {
+    // todo
 }
 
-VariableValue::VariableValue(std::string var_name) {
+VariableValue::VariableValue(std::string var_name) 
+    : dotted_ids({ var_name }) 
+{
 }
 
-VariableValue::VariableValue(std::vector<std::string> dotted_ids) {
+VariableValue::VariableValue(std::vector<std::string> dotted_ids) 
+    : dotted_ids(dotted_ids)
+{
 }
 
 ObjectHolder VariableValue::Execute(Closure& closure) {
+    // todo
 }
 
 unique_ptr<Print> Print::Variable(std::string var) {
+    // todo
 }
 
-Print::Print(unique_ptr<Statement> argument) {
+Print::Print(unique_ptr<Statement> argument) 
+    : args({ argument })
+{
 }
 
-Print::Print(vector<unique_ptr<Statement>> args) {
+Print::Print(vector<unique_ptr<Statement>> args)
+    : args(args)
+{
 }
 
 ObjectHolder Print::Execute(Closure& closure) {
+    // todo
 }
 
 ostream* Print::output = &cout;

@@ -61,6 +61,12 @@ public:
   const Method* GetMethod(const std::string& name) const;
   const std::string& GetName() const;
   void Print(std::ostream& os) override;
+  const Class* GetParent() const;
+
+private:
+    std::string name;
+    std::vector<Method> methods;
+    const Class* parent = nullptr;
 };
 
 class ClassInstance : public Object {
@@ -74,6 +80,10 @@ public:
 
   Closure& Fields();
   const Closure& Fields() const;
+
+private:
+    const Class* cls;
+    Closure fields;
 };
 
 void RunObjectsTests(TestRunner& test_runner);

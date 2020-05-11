@@ -40,6 +40,21 @@ ObjectHolder::operator bool() const {
 }
 
 bool IsTrue(ObjectHolder object) {
+    if (object.TryAs<Bool>()) {
+        return object.TryAs<Bool>()->GetValue();
+    }
+    else if (object.TryAs<Number>()) {
+        return static_cast<bool>(object.TryAs<Number>()->GetValue());
+    }
+    else if (object.TryAs<String>()) {
+        return (!object.TryAs<String>()->GetValue().empty());
+    }
+    else if (object.TryAs<Class>()) {
+        return true;
+    }
+    else {
+        return false;
+    }
 }
 
 }
