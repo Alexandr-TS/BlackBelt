@@ -40,7 +40,7 @@ struct VariableValue : Statement {
   explicit VariableValue(std::string var_name);
   explicit VariableValue(std::vector<std::string> dotted_ids);
   ObjectHolder Execute(Runtime::Closure& closure) override;
-  string GetFullName();
+  std::string GetFullName();
 };
 
 struct Assignment : Statement {
@@ -68,7 +68,7 @@ struct None : Statement {
 
 class Print : public Statement {
 public:
-  explicit Print(std::unique_ptr<Statement> argument);
+  explicit Print(std::unique_ptr<Statement>&& argument);
   explicit Print(std::vector<std::unique_ptr<Statement>> args);
 
   static std::unique_ptr<Print> Variable(std::string name);

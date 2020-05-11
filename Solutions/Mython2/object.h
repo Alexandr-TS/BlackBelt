@@ -57,7 +57,7 @@ struct Method {
 
 class Class : public Object {
 public:
-  explicit Class(std::string name, std::vector<Method> methods, const Class* parent);
+  explicit Class(std::string name, std::vector<Method>&& methods, const Class* parent);
   const Method* GetMethod(const std::string& name) const;
   const std::string& GetName() const;
   void Print(std::ostream& os) override;

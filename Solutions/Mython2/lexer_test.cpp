@@ -334,9 +334,3 @@ print str(p)
     }
 
 } /* namespace Parse */
-
-int main() {
-    TestRunner tr;
-    Parse::RunLexerTests(tr);
-    return 0;
-}

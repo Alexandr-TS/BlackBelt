@@ -40,29 +40,39 @@ string VariableValue::GetFullName() {
 }
 
 ObjectHolder VariableValue::Execute(Closure& closure) {
-    auto name = GetFullName();
-    if (!closure.count(name)) {
-        throw runtime_error(("unknown var name: " + name).c_str());
+    string full_name = GetFullName();
+    if (!closure.count(full_name)) {
+        throw runtime_error(("unknown variable " + full_name).c_str());
     }
-    return closure[name];
+    return closure[full_name];
+
+    /*
+    Closure* cur_closure = &closure;
+    for (size_t i = 0; i + 1 < dotted_ids.size(); ++i) {
+        if (!(*cur_closure).count(dotted_ids[i])) {
+            throw runtime_error(("unknown var name: " + dotted_ids[i]).c_str());
+        }
+        cur_closure = &((*cur_closure)[dotted_ids[i]].TryAs<Runtime::ClassInstance>()->Fields());
+    }
+    return (*cur_closure)[dotted_ids.back()];
+    */
 }
 
 unique_ptr<Print> Print::Variable(std::string var) {
     return make_unique<Print>(Print(make_unique<VariableValue>(var)));
 }
 
-Print::Print(unique_ptr<Statement> argument) 
-    : args({ argument })
-{
+Print::Print(unique_ptr<Statement>&& argument) {
+    args.emplace_back(move(argument));
 }
 
 Print::Print(vector<unique_ptr<Statement>> args)
-    : args(args)
+    : args(move(args))
 {
 }
 
 ObjectHolder Print::Execute(Closure& closure) {
-    for (auto arg : args) {
+    for (const auto& arg : args) {
         arg->Execute(closure)->Print(*output);
     }
     // check return value
@@ -87,7 +97,8 @@ MethodCall::MethodCall(
 }
 
 ObjectHolder MethodCall::Execute(Closure& closure) {
-    // todo
+    // check, todo
+    return ObjectHolder::None();
 }
 
 ObjectHolder Stringify::Execute(Closure& closure) {
@@ -111,7 +122,7 @@ ObjectHolder Stringify::Execute(Closure& closure) {
     }
     else if (val.TryAs<ClassInstance>()) {
         const auto ptr = val.TryAs<ClassInstance>();
-        if (ptr->HasMethod("__str__")) {
+        if (ptr->HasMethod("__str__", 0)) {
             return ptr->Call("__str__", {});
         }
         else {
@@ -221,7 +232,7 @@ FieldAssignment::FieldAssignment(
 
 ObjectHolder FieldAssignment::Execute(Runtime::Closure& closure) {
     auto full_name = object.GetFullName() + "." + field_name;
-    return closure[full_name] = right_value->Execute();
+    return closure[full_name] = right_value->Execute(closure);
 }
 
 IfElse::IfElse(

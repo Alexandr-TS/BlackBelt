@@ -21,6 +21,7 @@ bool ClassInstance::HasMethod(const std::string& method, size_t argument_count) 
 		}
 		cur_class_ptr = cur_class_ptr->GetParent();
 	}
+	return false;
 }
 
 const Closure& ClassInstance::Fields() const {
@@ -42,16 +43,20 @@ ObjectHolder ClassInstance::Call(const std::string& method, const std::vector<Ob
 		return ObjectHolder::None();
 	}
 
-	Closure args;
 	for (size_t i = 0; i < method_ptr->formal_params.size(); ++i) {
-		args[method_ptr->formal_params[i]] = actual_args[i];
+		fields[method_ptr->formal_params[i]] = actual_args[i];
 	}
-	return method_ptr->body->Execute(args);
+
+	auto result = method_ptr->body->Execute(fields);
+	for (size_t i = 0; i < method_ptr->formal_params.size(); ++i) {
+		fields.erase(method_ptr->formal_params[i]);
+	}
+	return result;
 }
 
-Class::Class(std::string name, std::vector<Method> methods, const Class* parent) 
+Class::Class(std::string name, std::vector<Method>&& methods, const Class* parent) 
 	: name(name)
-	, methods(methods)
+	, methods(move(methods))
 	, parent(parent)
 {
 }
@@ -79,7 +84,7 @@ const std::string& Class::GetName() const {
 }
 
 const Runtime::Class* Class::GetParent() const {
-	return paretn;
+	return parent;
 }
 
 void Bool::Print(std::ostream& os) {
