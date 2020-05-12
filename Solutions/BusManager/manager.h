@@ -414,16 +414,13 @@ public:
     }
 
 private:
-    struct MapInfo {
-        map<double, double> lon_to_image_coor;
-        map<double, double> lat_to_image_coor;
-    };
-
 	struct StopInfo {
 		double lat;
 		double lon;
 		string name;
 	};
+
+    using MapInfo = map<string, StopInfo>;
 
     vector<int> GetIdsAfterCompress(vector<StopInfo>& stops_points, set<pair<string, string>>& neighbour_stops) {
         vector<int> id_after_compress(stops_points.size(), 0);
@@ -442,29 +439,89 @@ private:
         return id_after_compress;
     }
 
+    void DistributeUniformly(vector<StopInfo>& stops_points, set<string>& pivot_stops) {
+        map<string, pair<double, double>> lat_lon_by_name;
+        for (auto& stop : stops_points) {
+            lat_lon_by_name[stop.name] = { stop.lat, stop.lon };
+        }
+
+        for (auto& [bus_name, bus] : Buses) {
+            auto stops = bus.Stops;
+            vector<int> pivot_ids;
+            for (size_t i = 0; i < stops.size(); ++i) {
+                if (pivot_stops.count(stops[i])) {
+                    pivot_ids.push_back(i);
+                }
+            }
+
+            size_t cur_pivot_id = 0;
+            for (size_t i = 0; i < stops.size(); ++i) {
+                if (pivot_stops.count(stops[i])) {
+                    cur_pivot_id++;
+                    continue;
+                }
+                // ids of 2 pivots in stops
+                size_t l = pivot_ids[cur_pivot_id - 1];
+                size_t r = pivot_ids[cur_pivot_id];
+                double lat_step = (lat_lon_by_name[stops[r]].first - lat_lon_by_name[stops[l]].first) / (r - l);
+                double lon_step = (lat_lon_by_name[stops[r]].second - lat_lon_by_name[stops[l]].second) / (r - l);
+                lat_lon_by_name[stops[i]] = { lat_lon_by_name[stops[l]].first + lat_step * (i - l), lat_lon_by_name[stops[l]].second + lon_step * (i - l) };
+            }
+        }
+
+        for (auto& stop : stops_points) {
+            auto it = lat_lon_by_name.find(stop.name);
+            stop.lat = it->second.first;
+            stop.lon = it->second.second;
+        }
+    }
+
     MapInfo ComputeMapInfo() {
 
         vector<StopInfo> stops_points;
         for (const auto& [stop_name, stop]: Stops) {
             stops_points.push_back({stop.StopLocation.Latitude, stop.StopLocation.Longitude, stop_name});
         }
-        
+
         MapInfo map_info;
 
+        // prepare neigbour_stops graph and pivot_stops set
         set<pair<string, string>> neighbour_stops;
+        set<string> pivot_stops; // endpoints and transfer stops
+        map<string, int> buses_cnt_by_stop_name; 
         for (auto& [bus_name, bus] : Buses) {
+            pivot_stops.insert(bus.Stops.back());
+            pivot_stops.insert(bus.Stops[0]);
+            if (!bus.IsRoundTrip) {
+                pivot_stops.insert(bus.Stops[bus.Stops.size() / 2]);
+            }
+            map<string, int> stops_set;
+            for (auto& stop : bus.Stops) {
+                stops_set[stop]++;
+                if (stops_set[stop] > 2) {
+                    pivot_stops.insert(stop);
+                }
+                else if (stops_set[stop] == 1) { // first occurence
+                    buses_cnt_by_stop_name[stop]++;
+                    if (buses_cnt_by_stop_name[stop] >= 2) {
+                        pivot_stops.insert(stop);
+                    }
+                }
+            }
             for (size_t i = 0; i + 1 < bus.Stops.size(); ++i) {
                 neighbour_stops.insert({ bus.Stops[i], bus.Stops[i + 1] });
                 neighbour_stops.insert({ bus.Stops[i + 1], bus.Stops[i] });
             }
         }
 
+        DistributeUniformly(stops_points, pivot_stops);
+
         // Longitude
         sort(stops_points.begin(), stops_points.end(), [](const auto& lhs, const auto& rhs) {return lhs.lon < rhs.lon; });
         auto id_after_compress = GetIdsAfterCompress(stops_points, neighbour_stops);
         double step_lon_coor = (RenderSettings_.width - 2 * RenderSettings_.padding) / (max(1, id_after_compress.back()));
         for (size_t i = 0; i < stops_points.size(); ++i) {
-            map_info.lon_to_image_coor[stops_points[i].lon] = RenderSettings_.padding + step_lon_coor * id_after_compress[i];
+            map_info[stops_points[i].name] = { 0, RenderSettings_.padding + step_lon_coor * id_after_compress[i], stops_points[i].name };
         }
         
         // Latitude
@@ -473,7 +530,7 @@ private:
 
         double step_lat_coor = (RenderSettings_.height - 2 * RenderSettings_.padding) / (max(1, id_after_compress.back()));
         for (size_t i = 0; i < stops_points.size(); ++i) {
-            map_info.lat_to_image_coor[stops_points[i].lat] = RenderSettings_.height - RenderSettings_.padding - step_lat_coor * id_after_compress[i];
+            map_info[stops_points[i].name].lat = RenderSettings_.height - RenderSettings_.padding - step_lat_coor * id_after_compress[i];
         }
         return map_info;
     }
@@ -488,10 +545,9 @@ private:
                 .SetStrokeLineCap("round")
                 .SetStrokeLineJoin("round");
             for (const auto stop_name: bus.Stops) {
-                const auto& stop = Stops[stop_name];
                 line.AddPoint({
-                    map_info.lon_to_image_coor[stop.StopLocation.Longitude],
-                    map_info.lat_to_image_coor[stop.StopLocation.Latitude]
+                    map_info[stop_name].lon,
+                    map_info[stop_name].lat
                 });
             }
             cur_color_idx = (cur_color_idx + 1) % RenderSettings_.color_palette.size();
@@ -506,10 +562,9 @@ private:
             string bus_name = iter->first;
             const auto& stops = iter->second.Stops;
             auto add_stop = [&](const string& stop_name) {
-                const auto& stop = Stops.at(stop_name);
                 Point coords = Point{ 
-                    map_info.lon_to_image_coor[stop.StopLocation.Longitude], 
-                    map_info.lat_to_image_coor[stop.StopLocation.Latitude] 
+                    map_info[stop_name].lon,
+                    map_info[stop_name].lat
                 }; 
                 auto base_settings = Text{}
                     .SetPoint(coords)
@@ -546,8 +601,8 @@ private:
         using namespace Svg;
         for (const auto& [stop_name, stop]: Stops) {
             Point coords = Point{ 
-                map_info.lon_to_image_coor[stop.StopLocation.Longitude], 
-                map_info.lat_to_image_coor[stop.StopLocation.Latitude] 
+                map_info[stop_name].lon,
+                map_info[stop_name].lat
             }; 
             auto circle = Circle{}
                 .SetCenter(coords)
@@ -561,8 +616,8 @@ private:
         using namespace Svg;
         for (const auto& [stop_name, stop]: Stops) {
             Point coords = Point{ 
-                map_info.lon_to_image_coor[stop.StopLocation.Longitude], 
-                map_info.lat_to_image_coor[stop.StopLocation.Latitude] 
+                map_info[stop_name].lon,
+                map_info[stop_name].lat
             }; 
             auto base_sets = Text{}
                 .SetPoint(coords)

@@ -47,14 +47,14 @@
       "type": "Bus",
       "name": "14",
       "stops": [
-        "Улица Лизы Чайкиной",
-        "Электросети",
-        "Ривьерский мост",
-        "Гостиница Сочи",
-        "Кубанская улица",
-        "По требованию",
-        "Улица Докучаева",
-        "Улица Лизы Чайкиной"
+        "Lisy Chaikinoy street",
+        "Electroseti",
+        "Rivyerskiy most",
+        "Gostinitsa Sochi",
+        "Kubanskaya street",
+        "Po trebovaniyu",
+        "Dokuchayeva street",
+        "Lisy Chaikinoy street"
       ],
       "is_roundtrip": true
     },
@@ -62,10 +62,10 @@
       "type": "Bus",
       "name": "24",
       "stops": [
-        "Улица Докучаева",
-        "Параллельная улица",
-        "Электросети",
-        "Санаторий Родина"
+        "Dokuchayeva street",
+        "Parallel street",
+        "Electroseti",
+        "Sanatoriy Rodina"
       ],
       "is_roundtrip": false
     },
@@ -73,97 +73,97 @@
       "type": "Bus",
       "name": "114",
       "stops": [
-        "Морской вокзал",
-        "Ривьерский мост"
+        "Morskoy Vokzal",
+        "Rivyerskiy most"
       ],
       "is_roundtrip": false
     },
     {
       "type": "Stop",
-      "name": "Улица Лизы Чайкиной",
+      "name": "Lisy Chaikinoy street",
       "latitude": 43.590317,
       "longitude": 39.746833,
       "road_distances": {
-        "Электросети": 4300,
-        "Улица Докучаева": 2000
+        "Electroseti": 4300,
+        "Dokuchayeva street": 2000
       }
     },
     {
       "type": "Stop",
-      "name": "Морской вокзал",
+      "name": "Morskoy Vokzal",
       "latitude": 43.581969,
       "longitude": 39.719848,
       "road_distances": {
-        "Ривьерский мост": 850
+        "Rivyerskiy most": 850
       }
     },
     {
       "type": "Stop",
-      "name": "Электросети",
+      "name": "Electroseti",
       "latitude": 43.598701,
       "longitude": 39.730623,
       "road_distances": {
-        "Санаторий Родина": 4500,
-        "Параллельная улица": 1200,
-        "Ривьерский мост": 1900
+        "Sanatoriy Rodina": 4500,
+        "Parallel street": 1200,
+        "Rivyerskiy most": 1900
       }
     },
     {
       "type": "Stop",
-      "name": "Ривьерский мост",
+      "name": "Rivyerskiy most",
       "latitude": 43.587795,
       "longitude": 39.716901,
       "road_distances": {
-        "Морской вокзал": 850,
-        "Гостиница Сочи": 1740
+        "Morskoy Vokzal": 850,
+        "Gostinitsa Sochi": 1740
       }
     },
     {
       "type": "Stop",
-      "name": "Гостиница Сочи",
+      "name": "Gostinitsa Sochi",
       "latitude": 43.578079,
       "longitude": 39.728068,
       "road_distances": {
-        "Кубанская улица": 320
+        "Kubanskaya street": 320
       }
     },
     {
       "type": "Stop",
-      "name": "Кубанская улица",
+      "name": "Kubanskaya street",
       "latitude": 43.578509,
       "longitude": 39.730959,
       "road_distances": {
-        "По требованию": 370
+        "Po trebovaniyu": 370
       }
     },
     {
       "type": "Stop",
-      "name": "По требованию",
+      "name": "Po trebovaniyu",
       "latitude": 43.579285,
       "longitude": 39.733742,
       "road_distances": {
-        "Улица Докучаева": 600
+        "Dokuchayeva street": 600
       }
     },
     {
       "type": "Stop",
-      "name": "Улица Докучаева",
+      "name": "Dokuchayeva street",
       "latitude": 43.585586,
       "longitude": 39.733879,
       "road_distances": {
-        "Параллельная улица": 1100
+        "Parallel street": 1100
       }
     },
     {
       "type": "Stop",
-      "name": "Параллельная улица",
+      "name": "Parallel street",
       "latitude": 43.590041,
       "longitude": 39.732886,
       "road_distances": {}
     },
     {
       "type": "Stop",
-      "name": "Санаторий Родина",
+      "name": "Sanatoriy Rodina",
       "latitude": 43.601202,
       "longitude": 39.715498,
       "road_distances": {}
@@ -178,8 +178,8 @@
     {
       "id": 1086967114,
       "type": "Route",
-      "from": "Морской вокзал",
-      "to": "Параллельная улица"
+      "from": "Morskoy Vokzal",
+      "to": "Parallel street"
     },
     {
       "id": 1218663236,
