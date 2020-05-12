@@ -436,25 +436,6 @@ private:
         for (size_t i = 0; i < stops_points.size(); ++i) {
             map_info.lat_to_image_coor[stops_points[i].first] = RenderSettings_.height - RenderSettings_.padding - step_lat_coor * i;
         }
-
-        /*
-        auto min_lat = min_element(stops_points.begin(), stops_points.end())->first;
-        auto max_lat = max_element(stops_points.begin(), stops_points.end())->first;
-        auto min_lon = min_element(stops_points.begin(), stops_points.end(), [](const auto& lhs, const auto& rhs) {return lhs.second < rhs.second;})->second;
-        auto max_lon = max_element(stops_points.begin(), stops_points.end(), [](const auto& lhs, const auto& rhs) {return lhs.second < rhs.second;})->second;
-        double zoom_coef = 0;
-        double EPS = 1e-9;
-        if (abs(max_lon - min_lon) > EPS) {
-            zoom_coef = (RenderSettings_.width - 2 * RenderSettings_.padding) / (max_lon - min_lon);
-        }
-        if (abs(max_lat - min_lat) > EPS) {
-            auto height_zoom_coef = (RenderSettings_.height - 2 * RenderSettings_.padding) / (max_lat - min_lat);
-            if (zoom_coef == 0 || zoom_coef > height_zoom_coef) {
-                zoom_coef = height_zoom_coef;
-            }
-        }
-        return MapInfo{ min_lat, max_lat, min_lon, max_lon, zoom_coef };
-        */
         return map_info;
     }
 
@@ -467,18 +448,12 @@ private:
                 .SetStrokeWidth(RenderSettings_.line_width)
                 .SetStrokeLineCap("round")
                 .SetStrokeLineJoin("round");
-            vector<pair<double, double>> line_points;
             for (const auto stop_name: bus.Stops) {
                 const auto& stop = Stops[stop_name];
-                line_points.push_back({
-                    map_info.lat_to_image_coor[stop.StopLocation.Latitude], 
-                    map_info.lon_to_image_coor[stop.StopLocation.Longitude]
+                line.AddPoint({
+                    map_info.lon_to_image_coor[stop.StopLocation.Longitude],
+                    map_info.lat_to_image_coor[stop.StopLocation.Latitude]
                 });
-            }
-            for (const auto& pt: line_points) {
-                line.AddPoint({ pt.second, pt.first });
-                //line.AddPoint({(pt.second - map_info.min_lon) * map_info.zoom_coef + RenderSettings_.padding, 
-                //    (map_info.max_lat - pt.first) * map_info.zoom_coef + RenderSettings_.padding});
             }
             cur_color_idx = (cur_color_idx + 1) % RenderSettings_.color_palette.size();
             svg_doc.Add(line);
@@ -493,13 +468,10 @@ private:
             const auto& stops = iter->second.Stops;
             auto add_stop = [&](const string& stop_name) {
                 const auto& stop = Stops.at(stop_name);
-                Point coords = Point{ map_info.lon_to_image_coor[stop.StopLocation.Longitude], map_info.lat_to_image_coor[stop.StopLocation.Latitude] }; 
-                /*
-                Point coords = Point{
-                    (stop.StopLocation.Longitude- map_info.min_lon) * map_info.zoom_coef + RenderSettings_.padding, 
-                    (map_info.max_lat - stop.StopLocation.Latitude) * map_info.zoom_coef + RenderSettings_.padding
-                };
-                */
+                Point coords = Point{ 
+                    map_info.lon_to_image_coor[stop.StopLocation.Longitude], 
+                    map_info.lat_to_image_coor[stop.StopLocation.Latitude] 
+                }; 
                 auto base_settings = Text{}
                     .SetPoint(coords)
                     .SetOffset(RenderSettings_.bus_label_offset)
@@ -534,13 +506,10 @@ private:
     void AddStopCirclesToSvg(MapInfo map_info, Svg::Document& svg_doc) {
         using namespace Svg;
         for (const auto& [stop_name, stop]: Stops) {
-            Point coords = Point{ map_info.lon_to_image_coor[stop.StopLocation.Longitude], map_info.lat_to_image_coor[stop.StopLocation.Latitude] }; 
-            /*
-            Point coords = Point{
-                (stop.StopLocation.Longitude - map_info.min_lon) * map_info.zoom_coef + RenderSettings_.padding, 
-                (map_info.max_lat - stop.StopLocation.Latitude) * map_info.zoom_coef + RenderSettings_.padding
-            };
-            */
+            Point coords = Point{ 
+                map_info.lon_to_image_coor[stop.StopLocation.Longitude], 
+                map_info.lat_to_image_coor[stop.StopLocation.Latitude] 
+            }; 
             auto circle = Circle{}
                 .SetCenter(coords)
                 .SetRadius(RenderSettings_.stop_radius)
@@ -552,13 +521,10 @@ private:
     void AddStopNamesToSvg(MapInfo map_info, Svg::Document& svg_doc) {
         using namespace Svg;
         for (const auto& [stop_name, stop]: Stops) {
-            Point coords = Point{ map_info.lon_to_image_coor[stop.StopLocation.Longitude], map_info.lat_to_image_coor[stop.StopLocation.Latitude] }; 
-            /*
-            Point coords = Point{
-                (stop.StopLocation.Longitude - map_info.min_lon) * map_info.zoom_coef + RenderSettings_.padding, 
-                (map_info.max_lat - stop.StopLocation.Latitude) * map_info.zoom_coef + RenderSettings_.padding
-            };
-            */
+            Point coords = Point{ 
+                map_info.lon_to_image_coor[stop.StopLocation.Longitude], 
+                map_info.lat_to_image_coor[stop.StopLocation.Latitude] 
+            }; 
             auto base_sets = Text{}
                 .SetPoint(coords)
                 .SetOffset(RenderSettings_.stop_label_offset)
