@@ -463,6 +463,7 @@ private:
                 // ids of 2 pivots in stops
                 size_t l = pivot_ids[cur_pivot_id - 1];
                 size_t r = pivot_ids[cur_pivot_id];
+                assert(l < i&& i < r);
                 double lat_step = (lat_lon_by_name[stops[r]].first - lat_lon_by_name[stops[l]].first) / (r - l);
                 double lon_step = (lat_lon_by_name[stops[r]].second - lat_lon_by_name[stops[l]].second) / (r - l);
                 lat_lon_by_name[stops[i]] = { lat_lon_by_name[stops[l]].first + lat_step * (i - l), lat_lon_by_name[stops[l]].second + lon_step * (i - l) };
@@ -511,6 +512,12 @@ private:
             for (size_t i = 0; i + 1 < bus.Stops.size(); ++i) {
                 neighbour_stops.insert({ bus.Stops[i], bus.Stops[i + 1] });
                 neighbour_stops.insert({ bus.Stops[i + 1], bus.Stops[i] });
+            }
+        }
+
+        for (auto& [stop_name, stop] : Stops) {
+            if (!buses_cnt_by_stop_name.count(stop_name)) {
+                pivot_stops.insert(stop_name);
             }
         }
 

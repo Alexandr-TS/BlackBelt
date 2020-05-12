@@ -47,7 +47,9 @@ struct Rgba {
     }   
 
     string ToString() const {
-        return "rgba(" + to_string(red) + "," + to_string(green) + "," + to_string(blue) + "," + to_string(alpha) + ")";
+        ostringstream os;
+        os << alpha;
+        return "rgba(" + to_string(red) + "," + to_string(green) + "," + to_string(blue) + "," + os.str() + ")";
     }
 };
 
