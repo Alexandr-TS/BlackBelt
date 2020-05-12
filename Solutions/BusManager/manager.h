@@ -422,41 +422,19 @@ private:
 
     using MapInfo = map<string, StopInfo>;
 
-    vector<int> GetIdsAfterCompress(vector<StopInfo>& stops_points, set<pair<string, string>>& neighbour_stops) {
-        /*
-        // graph (v, u) means that v and u are stops in one bus line
-        set<pair<string, string>> stops_in_one_line;
-        for (const auto& [bus_name, bus] : Buses) {
-            for (const auto& stop_name1 : bus.Stops) {
-                for (const auto& stop_name2 : bus.Stops) {
-                    stops_in_one_line.insert({ stop_name1, stop_name2 });
-                }
-            }
-        }
-        */
-
+    vector<int> GetIdsAfterCompress(
+        vector<StopInfo>& stops_points, 
+        set<pair<string, string>>& neighbour_stops
+    ) {
         vector<int> id_after_compress(stops_points.size(), -1);
         for (size_t i = 0; i < stops_points.size(); ++i) {
             int max_neighbour_id = -1;
             for (size_t j = 0; j < i; ++j) {
                 if (neighbour_stops.count({ stops_points[i].name, stops_points[j].name })) {
-                //if (stops_in_one_line.count({ stops_points[i].name, stops_points[j].name })) {
                     max_neighbour_id = max(max_neighbour_id, id_after_compress[j]);
                 }
             }
             id_after_compress[i] = max_neighbour_id + 1;
-/*
-            bool same_id = true;
-            int ptr = static_cast<int>(i) - 1;
-            while (ptr >= 0 && id_after_compress[ptr] == id_after_compress[i - 1]) {
-                if (neighbour_stops.count({ stops_points[i].name, stops_points[ptr].name })) {
-                    same_id = false;
-                    break;
-                }
-                ptr--;
-            }
-            id_after_compress[i] = id_after_compress[i - 1] + static_cast<int>(!same_id);
-            */
         }
         return id_after_compress;
     }
@@ -486,9 +464,14 @@ private:
                 size_t l = pivot_ids[cur_pivot_id - 1];
                 size_t r = pivot_ids[cur_pivot_id];
                 assert(l < i&& i < r);
-                double lat_step = (lat_lon_by_name[stops[r]].first - lat_lon_by_name[stops[l]].first) / (r - l);
-                double lon_step = (lat_lon_by_name[stops[r]].second - lat_lon_by_name[stops[l]].second) / (r - l);
-                lat_lon_by_name[stops[i]] = { lat_lon_by_name[stops[l]].first + lat_step * (i - l), lat_lon_by_name[stops[l]].second + lon_step * (i - l) };
+                double lat_step = 
+                    (lat_lon_by_name[stops[r]].first - lat_lon_by_name[stops[l]].first) / (r - l);
+                double lon_step = 
+                    (lat_lon_by_name[stops[r]].second - lat_lon_by_name[stops[l]].second) / (r - l);
+                lat_lon_by_name[stops[i]] = { 
+                    lat_lon_by_name[stops[l]].first + lat_step * (i - l), 
+                    lat_lon_by_name[stops[l]].second + lon_step * (i - l) 
+                };
             }
         }
 
@@ -500,10 +483,13 @@ private:
     }
 
     MapInfo ComputeMapInfo() {
-
         vector<StopInfo> stops_points;
         for (const auto& [stop_name, stop]: Stops) {
-            stops_points.push_back({stop.StopLocation.Latitude, stop.StopLocation.Longitude, stop_name});
+            stops_points.push_back({
+                stop.StopLocation.Latitude, 
+                stop.StopLocation.Longitude, 
+                stop_name
+            });
         }
 
         MapInfo map_info;
@@ -546,20 +532,29 @@ private:
         DistributeUniformly(stops_points, pivot_stops);
 
         // Longitude
-        sort(stops_points.begin(), stops_points.end(), [](const auto& lhs, const auto& rhs) {return lhs.lon < rhs.lon; });
+        sort(stops_points.begin(), stops_points.end(), 
+            [](const auto& lhs, const auto& rhs) {return lhs.lon < rhs.lon; });
         auto id_after_compress = GetIdsAfterCompress(stops_points, neighbour_stops);
-        double step_lon_coor = (RenderSettings_.width - 2 * RenderSettings_.padding) / (max(1, *max_element(id_after_compress.begin(), id_after_compress.end())));
+        double step_lon_coor = (RenderSettings_.width - 2 * RenderSettings_.padding) / 
+            (max(1, *max_element(id_after_compress.begin(), id_after_compress.end())));
         for (size_t i = 0; i < stops_points.size(); ++i) {
-            map_info[stops_points[i].name] = { 0, RenderSettings_.padding + step_lon_coor * id_after_compress[i], stops_points[i].name };
+            map_info[stops_points[i].name] = { 
+                0, 
+                RenderSettings_.padding + step_lon_coor * id_after_compress[i], 
+                stops_points[i].name 
+            };
         }
         
         // Latitude
-        sort(stops_points.begin(), stops_points.end(), [](const auto& lhs, const auto& rhs) {return lhs.lat < rhs.lat; });
+        sort(stops_points.begin(), stops_points.end(), 
+            [](const auto& lhs, const auto& rhs) {return lhs.lat < rhs.lat; });
         id_after_compress = GetIdsAfterCompress(stops_points, neighbour_stops);
 
-        double step_lat_coor = (RenderSettings_.height - 2 * RenderSettings_.padding) / (max(1, *max_element(id_after_compress.begin(), id_after_compress.end())));
+        double step_lat_coor = (RenderSettings_.height - 2 * RenderSettings_.padding) / 
+            (max(1, *max_element(id_after_compress.begin(), id_after_compress.end())));
         for (size_t i = 0; i < stops_points.size(); ++i) {
-            map_info[stops_points[i].name].lat = RenderSettings_.height - RenderSettings_.padding - step_lat_coor * id_after_compress[i];
+            map_info[stops_points[i].name].lat = 
+                RenderSettings_.height - RenderSettings_.padding - step_lat_coor * id_after_compress[i];
         }
         return map_info;
     }
