@@ -169,12 +169,10 @@ void PrintResponsesJson(const vector<unique_ptr<Response>>& responses) {
 }
 
 int main() {
-	/*
     FILE* file;
 	freopen_s(&file, "C:\\Users\\Admin\\source\\repos\\BlackBelt\\Solutions\\BusManager\\a.in", "r", stdin);
-    FILE* file2;
-	freopen_s(&file2, "C:\\Users\\Admin\\source\\repos\\BlackBelt\\Solutions\\BusManager\\map.svg", "w", stdout);
-    */
+    //FILE* file2;
+	//freopen_s(&file2, "C:\\Users\\Admin\\source\\repos\\BlackBelt\\Solutions\\BusManager\\map.svg", "w", stdout);
 
 	auto requests = ReadAllRequestsJson();
 	const auto responses = GetResponses(move(requests));

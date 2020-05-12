@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <string>
 #include <cstring>
+#include <fstream>
 #include <sstream>
 #include <unordered_map>
 #include <utility>
@@ -351,6 +352,10 @@ public:
         auto raw_text = ss.str();
 
         //cout << endl << raw_text << endl << endl;
+        std::ofstream fout;
+        fout.open("C:\\Users\\Admin\\source\\repos\\BlackBelt\\Solutions\\BusManager\\map.svg");
+        fout << raw_text << endl;
+        fout.close();
 
         string added_slashes = "";
         for (const auto ch: raw_text) {
@@ -397,11 +402,11 @@ public:
 		}
 
 		for (const auto& el : best_bus_by_2_stops) {
-				const auto& [from_stop, to_stop] = el.first;
-				const auto& [dist, bus_name, span_count] = el.second;
-				Edge<double> edge{ StopIdByName[from_stop], StopIdByName[to_stop], dist };
-				auto edge_id = GraphPtr->AddEdge(edge);
-				Edges.push_back({ dist, from_stop, to_stop, bus_name, edge_id, span_count });
+			const auto& [from_stop, to_stop] = el.first;
+			const auto& [dist, bus_name, span_count] = el.second;
+			Edge<double> edge{ StopIdByName[from_stop], StopIdByName[to_stop], dist };
+			auto edge_id = GraphPtr->AddEdge(edge);
+			Edges.push_back({ dist, from_stop, to_stop, bus_name, edge_id, span_count });
 		}
 
 		RouteBuilder = make_unique<Graph::Router<double>>(*GraphPtr);
@@ -409,32 +414,65 @@ public:
 
 private:
     struct MapInfo {
-        double min_lat;
-        double max_lat;
-        double min_lon;
-        double max_lon;
-        double zoom_coef;
         map<double, double> lon_to_image_coor;
         map<double, double> lat_to_image_coor;
     };
 
+	struct StopInfo {
+		double lat;
+		double lon;
+		string name;
+	};
+
+    vector<int> GetIdsAfterCompress(vector<StopInfo>& stops_points, set<pair<string, string>>& neighbour_stops) {
+        vector<int> id_after_compress(stops_points.size(), 0);
+        for (size_t i = 1; i < stops_points.size(); ++i) {
+            bool same_id = true;
+            int ptr = static_cast<int>(i) - 1;
+            while (ptr >= 0 && id_after_compress[ptr] == id_after_compress[i - 1]) {
+                if (neighbour_stops.count({ stops_points[i].name, stops_points[ptr].name })) {
+                    same_id = false;
+                    break;
+                }
+                ptr--;
+            }
+            id_after_compress[i] = id_after_compress[i - 1] + static_cast<int>(!same_id);
+        }
+        return id_after_compress;
+    }
+
     MapInfo ComputeMapInfo() {
-        vector<pair<double, double>> stops_points;
+
+        vector<StopInfo> stops_points;
         for (const auto& [stop_name, stop]: Stops) {
-            stops_points.push_back({stop.StopLocation.Latitude, stop.StopLocation.Longitude});
+            stops_points.push_back({stop.StopLocation.Latitude, stop.StopLocation.Longitude, stop_name});
         }
-
-        double step_lon_coor = (RenderSettings_.width - 2 * RenderSettings_.padding) / (max((size_t)2, stops_points.size()) - 1);
-        double step_lat_coor = (RenderSettings_.height - 2 * RenderSettings_.padding) / (max((size_t)2, stops_points.size()) - 1);
-
+        
         MapInfo map_info;
-        sort(stops_points.begin(), stops_points.end(), [](const auto& lhs, const auto& rhs) {return lhs.second < rhs.second; });
-        for (size_t i = 0; i < stops_points.size(); ++i) {
-            map_info.lon_to_image_coor[stops_points[i].second] = RenderSettings_.padding + step_lon_coor * i;
+
+        set<pair<string, string>> neighbour_stops;
+        for (auto& [bus_name, bus] : Buses) {
+            for (size_t i = 0; i + 1 < bus.Stops.size(); ++i) {
+                neighbour_stops.insert({ bus.Stops[i], bus.Stops[i + 1] });
+                neighbour_stops.insert({ bus.Stops[i + 1], bus.Stops[i] });
+            }
         }
-        sort(stops_points.begin(), stops_points.end());
+
+        // Longitude
+        sort(stops_points.begin(), stops_points.end(), [](const auto& lhs, const auto& rhs) {return lhs.lon < rhs.lon; });
+        auto id_after_compress = GetIdsAfterCompress(stops_points, neighbour_stops);
+        double step_lon_coor = (RenderSettings_.width - 2 * RenderSettings_.padding) / (max(1, id_after_compress.back()));
         for (size_t i = 0; i < stops_points.size(); ++i) {
-            map_info.lat_to_image_coor[stops_points[i].first] = RenderSettings_.height - RenderSettings_.padding - step_lat_coor * i;
+            map_info.lon_to_image_coor[stops_points[i].lon] = RenderSettings_.padding + step_lon_coor * id_after_compress[i];
+        }
+        
+        // Latitude
+        sort(stops_points.begin(), stops_points.end(), [](const auto& lhs, const auto& rhs) {return lhs.lat < rhs.lat; });
+        id_after_compress = GetIdsAfterCompress(stops_points, neighbour_stops);
+
+        double step_lat_coor = (RenderSettings_.height - 2 * RenderSettings_.padding) / (max(1, id_after_compress.back()));
+        for (size_t i = 0; i < stops_points.size(); ++i) {
+            map_info.lat_to_image_coor[stops_points[i].lat] = RenderSettings_.height - RenderSettings_.padding - step_lat_coor * id_after_compress[i];
         }
         return map_info;
     }
