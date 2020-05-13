@@ -78,11 +78,36 @@ void TestHasValue() {
     ASSERT(!o.HasValue());
 }
 
+int plusOne(const Optional<int>& x) {
+    return *x + 1;
+}
+
+int plusOne2(const Optional<pair<int, int>>& x) {
+    return x->second + 1;
+}
+
+void TestStars() {
+    Optional<int> o = int(12);
+    int x = *o;
+    int y = plusOne(x);
+    ASSERT(x == 12);
+    ASSERT(y == 13);
+
+    Optional<pair<int, int>> o2 = pair<int, int>(1, 2);
+    ASSERT(o2->first == 1);
+    int y2 = plusOne2(o2);
+    ASSERT(y2 == 3);
+
+    Optional<int> o3;
+    o = o3;
+}
+
 int main() {
     TestRunner tr;
     RUN_TEST(tr, TestInit);
     RUN_TEST(tr, TestAssign);
     RUN_TEST(tr, TestReset);
     RUN_TEST(tr, TestHasValue);
+    RUN_TEST(tr, TestStars);
     return 0;
 }

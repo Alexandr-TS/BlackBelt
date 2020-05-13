@@ -1,5 +1,4 @@
 ﻿{
-  // See https://go.microsoft.com//fwlink//?linkid=834763 for more information about this file.
   "configurations": [
     {
       "name": "x64-Debug",
@@ -11,6 +10,21 @@
       "cmakeCommandArgs": "",
       "buildCommandArgs": "-v",
       "ctestCommandArgs": "",
+      "cmakeToolchain": "C:/Users/Admin/Documents/devtools/vcpkg/scripts/buildsystems/vcpkg.cmake",
+      "variables": []
+    },
+    {
+      "name": "x86-Release",
+      "generator": "Ninja",
+      "configurationType": "RelWithDebInfo",
+      "buildRoot": "${projectDir}\\out\\build\\${name}",
+      "installRoot": "${projectDir}\\out\\install\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "-v",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "msvc_x86" ],
+      "enableMicrosoftCodeAnalysis": true,
+      "addressSanitizerEnabled": true,
       "cmakeToolchain": "C:/Users/Admin/Documents/devtools/vcpkg/scripts/buildsystems/vcpkg.cmake",
       "variables": []
     }

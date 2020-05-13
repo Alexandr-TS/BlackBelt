@@ -1,3 +1,13 @@
+#include <sstream>
+#include <stdexcept>
+#include <iostream>
+#include <map>
+#include <unordered_map>
+#include <set>
+#include <string>
+#include <vector>
+
+
 // Исключение этого типа должно генерироваться при обращении к "пустому" Optional в функции Value
 struct BadOptionalAccess {
 };
@@ -18,7 +28,7 @@ public:
 
     Optional(T&& elem) 
         : defined(true) {
-        new (data) T(move(elem));
+        new (data) T(std::move(elem));
     }
 
     Optional(const Optional& other) 
@@ -31,29 +41,29 @@ public:
     Optional(Optional&& other) 
         : defined(other.HasValue()) {
 		if (other.HasValue()) {
-            new (data) T(move(other.Value()));
+            new (data) T(std::move(other.Value()));
 		}
     }
 
     Optional& operator=(const T& elem) {
         if (defined) {
-            Value().~T();
+            Value() = elem;
         }
         else {
             defined = true;
+            new (data) T(elem);
         }
-        new (data) T(elem);
         return *this;
     }
 
     Optional& operator=(T&& elem) {
         if (defined) {
-            Value().~T();
+            Value() = std::move(elem);
         }
         else {
             defined = true;
+            new (data) T(std::move(elem));
         }
-        new (data) T(move(elem));
         return *this;
     }
 
@@ -64,7 +74,7 @@ public:
             }
             else {
                 defined = other.HasValue();
-                Value().~T();
+                reinterpret_cast<T*>(data)->~T();
             }
         }
         else {
@@ -79,17 +89,17 @@ public:
     Optional& operator=(Optional&& other) {
         if (defined) {
             if (other.HasValue()) {
-                Value() = move(other.Value());
+                Value() = std::move(other.Value());
             }
             else {
                 defined = other.HasValue();
-                Value().~T();
+                reinterpret_cast<T*>(data)->~T();
             }
         }
         else {
             defined = other.HasValue();
             if (other.HasValue()) {
-                new (data) T(move(other.Value()));
+                new (data) T(std::move(other.Value()));
             }
         }
         return *this;
@@ -105,13 +115,13 @@ public:
         return *reinterpret_cast<T*>(data);
     }
     const T& operator*() const {
-        return *reinterpret_cast<T*>(data);
+        return *reinterpret_cast<const T*>(data);
     }
     T* operator->() {
         return reinterpret_cast<T*>(data);
     }
     const T* operator->() const {
-        return reinterpret_cast<T*>(data);
+        return reinterpret_cast<const T*>(data);
     }
 
     // Генерирует исключение BadOptionalAccess, если объекта нет
@@ -130,12 +140,14 @@ public:
 
     void Reset() {
         if (defined) {
-            Value().~T();
+            reinterpret_cast<T*>(data)->~T();
             defined = false;
         }
     }
 
     ~Optional() {
-        reinterpret_cast<T*>(data)->~T();
+        if (defined) {
+            reinterpret_cast<T*>(data)->~T();
+        }
     }
 };
