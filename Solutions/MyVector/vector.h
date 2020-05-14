@@ -20,7 +20,7 @@ struct RawMemory {
         return *this;
     }
 
-    RawMemory(RawMemory&& rm) {
+    RawMemory(RawMemory&& rm) noexcept {
         this->Swap(rm);
     }
     RawMemory()
@@ -36,7 +36,7 @@ struct RawMemory {
         Deallocate(buf);
     }
 
-    void Swap(RawMemory<T>& rm) {
+    void Swap(RawMemory<T>& rm) noexcept {
         std::swap(buf, rm.buf);
         std::swap(cp, rm.cp);
     }
@@ -93,8 +93,6 @@ public:
     Vector& operator = (Vector&& other) noexcept {
         std::swap(sz, other.sz);
         data.Swap(other.data);
-        std::destroy_n(other.data.buf, other.sz);
-        other.sz = 0;
         return *this;
     }
 
@@ -118,9 +116,7 @@ public:
     }
 
     void PushBack(const T& elem) {
-        if (sz == data.cp) {
-            Reserve(!sz ? 1 : 2 * sz);
-        }
+        DoubleReserve();
         new (data.buf + sz) T(elem);
         sz++;
     }
@@ -164,7 +160,87 @@ public:
         return *(data.buf + i);
     }
 
+    // В данной части задачи реализуйте дополнительно эти функции:
+    using iterator = T*;
+    using const_iterator = const T*;
+
+    iterator begin() noexcept {
+        return data.buf;
+    }
+    iterator end() noexcept {
+        return data.buf + sz;
+    }
+
+    const_iterator begin() const noexcept {
+        return data.buf;
+    }
+    const_iterator end() const noexcept {
+        return data.buf + sz;
+    }
+
+    // Тут должна быть такая же реализация, как и для константных версий begin/end
+    const_iterator cbegin() const noexcept {
+        return data.buf;
+    }
+    const_iterator cend() const noexcept {
+        return data.buf + sz;
+    }
+
+    // Вставляет элемент перед pos
+    // Возвращает итератор на вставленный элемент
+    iterator Insert(const_iterator pos, const T& elem) {
+        size_t shift = pos - data.buf;
+        DoubleReserve();
+        for (auto it = data.buf + sz - 1; it != data.buf + shift - 1; --it) {
+            std::uninitialized_move_n(it, 1, it + 1);
+        }
+        sz++;
+        return new (data.buf + shift) T(elem);
+    }
+
+    iterator Insert(const_iterator pos, T&& elem) {
+        size_t shift = pos - data.buf;
+        DoubleReserve();
+        for (iterator it = data.buf + sz - 1; it != data.buf + shift - 1; --it) {
+            std::uninitialized_move_n(it, 1, it + 1);
+        }
+        sz++;
+        return new (data.buf + shift) T(std::move(elem));
+    }
+
+    // Конструирует элемент по заданным аргументам конструктора перед pos
+    // Возвращает итератор на вставленный элемент
+    template <typename ... Args>
+    iterator Emplace(const_iterator it, Args&&... args) {
+        size_t shift = it - data.buf;
+        DoubleReserve();
+        for (iterator iter = data.buf + sz - 1; iter != data.buf + shift - 1; --iter) {
+            std::uninitialized_move_n(iter, 1, iter + 1);
+        }
+        sz++;
+        return new (data.buf + shift) T(std::forward<Args>(args)...);
+    }
+
+    // Удаляет элемент на позиции pos
+    // Возвращает итератор на элемент, следующий за удалённым
+    iterator Erase(const_iterator it) {
+        std::destroy_at(it);
+        for (iterator iter = data.buf + (it - data.buf) + 1; 
+            iter != data.buf + sz; ++iter) {
+            std::uninitialized_move_n(iter, 1, iter - 1);
+        }
+        sz--;
+        size_t shift = it - data.buf;
+        return data.buf + shift;
+    }
+
 private:
+    void DoubleReserve() {
+        if (sz == data.cp) {
+            Reserve(!sz ? 1 : 2 * sz);
+        }
+    }
+
     RawMemory<T> data;
     size_t sz = 0;
 };
