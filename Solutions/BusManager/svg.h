@@ -48,7 +48,7 @@ struct Rgba {
 
     string ToString() const {
         ostringstream os;
-        os << alpha;
+        os << fixed << setprecision(12) << alpha;
         return "rgba(" + to_string(red) + "," + to_string(green) + "," + to_string(blue) + "," + os.str() + ")";
     }
 };
@@ -136,7 +136,7 @@ public:
         return *this;
     }
 
-    Rectangle& SetSize(int height, int width) {
+    Rectangle& SetSize(double height, double width) {
         Height = height;
         Width = width;
         return *this;

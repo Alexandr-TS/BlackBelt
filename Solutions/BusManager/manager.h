@@ -139,7 +139,7 @@ public:
     double padding;
     double stop_radius;
     double line_width;
-    double outer_margin;
+    double outer_margin = 0;
     int stop_label_font_size;
     Svg::Point stop_label_offset;
     Svg::Color underlayer_color;
