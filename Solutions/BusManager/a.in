@@ -7,6 +7,7 @@
     "width": 1200,
     "height": 500,
     "padding": 50,
+    "outer_margin": 150,
     "stop_radius": 5,
     "line_width": 14,
     "bus_label_font_size": 20,

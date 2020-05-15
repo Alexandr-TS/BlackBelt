@@ -239,6 +239,7 @@ public:
 
     RouteInfoResponse Process(BusManager& manager) const override {
         auto response = manager.GetRouteResponse(StopFrom, StopTo);
+        //auto response = manager.GetMapInfoResponse();
         response.Info.AddNodeToMap("request_id", Node(static_cast<double>(Request_id)));
         response.SetRequestId(Request_id);
         return response;

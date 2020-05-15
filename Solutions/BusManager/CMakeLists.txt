@@ -5,8 +5,8 @@ cmake_minimum_required (VERSION 3.8)
 
 # Добавьте источник в исполняемый файл этого проекта.
 add_executable (CourseraBlackBelt 
-"main.cpp" "json.cpp"
-"test_runner.h" "graph.h" "json.h" "manager.h" "router.h" "svg.h" "utils.h" "requests.h"
+"main.cpp" "json.cpp" "svg_adders.cpp"
+"test_runner.h" "graph.h" "json.h" "manager.h" "router.h" "svg.h" "utils.h" "requests.h" "responses.h"
 ) 
 
 # TODO: Добавьте тесты и целевые объекты, если это необходимо.

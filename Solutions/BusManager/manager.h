@@ -3,6 +3,7 @@
 #include "json.h"
 #include "router.h"
 #include "svg.h"
+#include "responses.h"
 
 #include <cassert>
 #include <memory>
@@ -18,6 +19,8 @@
 #include <optional>
 #include <cmath>
 #include <functional>
+#include <set>
+
 using namespace std;
 
 const double PI = 3.1415926535;
@@ -33,89 +36,6 @@ struct Location {
         return acos(sin(p1.first) * sin(p2.first) +
                 cos(p1.first) * cos(p2.first) * cos(p1.second - p2.second)) * RADIUS * 1000;
     }
-};
-
-class Response {
-public:
-    enum class EResponseType {
-        BUS_INFO,
-        STOP_INFO,
-        ROUTE_INFO,
-        MAP_INFO
-    } Type;
-
-    Response(EResponseType&& type)
-        : Type(type)
-    {}
-
-    void SetRequestId(int32_t id) {
-        Request_id = id;
-    }
-
-    int32_t Request_id = -1;
-};
-
-class RouteInfoResponse : public Response {
-public:
-    RouteInfoResponse() : Response(Response::EResponseType::ROUTE_INFO) {}
-
-    RouteInfoResponse(Json::Node&& node)
-        : Response(Response::EResponseType::ROUTE_INFO)
-        , Info(node)
-    {}
-
-    Json::Node Info;
-};
-
-class MapInfoResponse : public Response {
-public:
-    MapInfoResponse() : Response(Response::EResponseType::MAP_INFO) {}
-    
-    MapInfoResponse(Json::Node&& node)
-        : Response(Response::EResponseType::MAP_INFO)
-        , Info(node)
-    {}
-
-    Json::Node Info;
-};
-
-class BusInfoResponse: public Response {
-public:
-    BusInfoResponse() : Response(Response::EResponseType::BUS_INFO) {}
-
-    struct MetricsInfo {
-        int CntStops;
-        int UniqueStops;
-        double PathLength;
-        double Curvature;
-    };
-
-    BusInfoResponse(const string& name, optional<MetricsInfo>&& info)
-        : Name(name)
-        , Info(info)
-        , Response(Response::EResponseType::BUS_INFO)
-    {}
-
-    string Name;
-    optional<MetricsInfo> Info;
-};
-
-class StopInfoResponse : public Response {
-public:
-	StopInfoResponse() : Response(Response::EResponseType::STOP_INFO) {}
-	
-	struct BusesInfo {
-		set<string> Buses;
-	};
-
-	StopInfoResponse(const string& name, optional<BusesInfo>&& info)
-		: Name(name)
-		, Info(info)
-		, Response(Response::EResponseType::STOP_INFO)
-	{}
-
-	string Name;
-	optional<BusesInfo> Info;
 };
 
 struct Stop {
@@ -196,6 +116,7 @@ public:
         padding = node.at("padding").AsDouble();
         stop_radius = node.at("stop_radius").AsDouble();
         line_width = node.at("line_width").AsDouble();
+        outer_margin = node.at("outer_margin").AsDouble();
         stop_label_font_size = static_cast<int>(node.at("stop_label_font_size").AsDouble());
         stop_label_offset = Svg::Point(node.at("stop_label_offset").AsArray()[0].AsDouble(),
             node.at("stop_label_offset").AsArray()[1].AsDouble());
@@ -218,6 +139,7 @@ public:
     double padding;
     double stop_radius;
     double line_width;
+    double outer_margin;
     int stop_label_font_size;
     Svg::Point stop_label_offset;
     Svg::Color underlayer_color;
@@ -293,6 +215,7 @@ public:
 
     RouteInfoResponse GetRouteResponse(const string& stop_from, const string& stop_to) {
         using namespace Json;
+        using namespace Svg;
 
         size_t from_id = StopIdByName[stop_from];
         size_t to_id = StopIdByName[stop_to];
@@ -324,29 +247,41 @@ public:
             node_map_items.push_back(Node(ride_node_map));
         }
         node_map["items"] = Node(node_map_items);
+
+
+        auto map_info = ComputeMapInfo();
+        Svg::Document svg_doc = BuildMapSvgDocument(map_info);
+        AddOpaqueRectToSvg(svg_doc);
+        AddPathsToSvg(map_info, svg_doc, result);
+
+        stringstream ss;
+        svg_doc.Render(ss);
+        auto raw_text = ss.str();
+
+        std::ofstream fout;
+        fout.open("C:\\Users\\Admin\\source\\repos\\BlackBelt\\Solutions\\BusManager\\map.svg");
+        fout << raw_text << endl;
+        fout.close();
+
+        string added_slashes = "";
+        for (const auto ch: raw_text) {
+            if (ch == '\"') {
+                added_slashes += '\\'; 
+            }
+            added_slashes += ch;
+        }
+
+        node_map["map"] = Node(added_slashes);
         return RouteInfoResponse(Node(node_map));
     }
+
 
     MapInfoResponse GetMapInfoResponse() {
         using namespace Svg; 
         using namespace Json;
 
-        Svg::Document svg_doc;
-
         auto map_info = ComputeMapInfo();
-  
-        for (const auto& layer: RenderSettings_.layers) {
-            if (layer == "bus_lines") {
-                AddPolylinesToSvg(map_info, svg_doc);
-            } else if (layer == "bus_labels") {
-                AddBusesNamesToSvg(map_info, svg_doc);
-            } else if (layer == "stop_points") {
-                AddStopCirclesToSvg(map_info, svg_doc); 
-            } else if (layer == "stop_labels") {
-                AddStopNamesToSvg(map_info, svg_doc);
-            }
-        }      
-   
+        Svg::Document svg_doc = BuildMapSvgDocument(map_info);
         stringstream ss;
         svg_doc.Render(ss);
         auto raw_text = ss.str();
@@ -365,10 +300,8 @@ public:
             }
             added_slashes += ch;
         }
-
         map<string, Node> result = {{"map", Node(added_slashes)}};
         return MapInfoResponse(Node(result));
-        
     }
     
     void BuildRoutes() {
@@ -559,113 +492,18 @@ private:
         return map_info;
     }
 
-    void AddPolylinesToSvg(MapInfo map_info, Svg::Document& svg_doc) {
-        using namespace Svg;
-        size_t cur_color_idx = 0;
-        for (const auto& [bus_name, bus]: Buses) {
-            Polyline line = Polyline{}
-                .SetStrokeColor(RenderSettings_.color_palette[cur_color_idx])
-                .SetStrokeWidth(RenderSettings_.line_width)
-                .SetStrokeLineCap("round")
-                .SetStrokeLineJoin("round");
-            for (const auto stop_name: bus.Stops) {
-                line.AddPoint({
-                    map_info[stop_name].lon,
-                    map_info[stop_name].lat
-                });
-            }
-            cur_color_idx = (cur_color_idx + 1) % RenderSettings_.color_palette.size();
-            svg_doc.Add(line);
-        } 
-    }
+    Svg::Document BuildMapSvgDocument(MapInfo& map_info);
+    void AddPolylinesToSvg(MapInfo map_info, Svg::Document& svg_doc);
+    void AddBusesNamesToSvg(MapInfo map_info, Svg::Document& svg_doc);
+    void AddStopCirclesToSvg(MapInfo map_info, Svg::Document& svg_doc);
+    void AddStopNamesToSvg(MapInfo map_info, Svg::Document& svg_doc);
+    void AddOpaqueRectToSvg(Svg::Document& svg_doc);
 
-    void AddBusesNamesToSvg(MapInfo map_info, Svg::Document& svg_doc) {
-        using namespace Svg;
-        size_t cur_color_idx = 0;
-        for (auto iter = Buses.begin(); iter != Buses.end(); ++iter) {
-            string bus_name = iter->first;
-            const auto& stops = iter->second.Stops;
-            auto add_stop = [&](const string& stop_name) {
-                Point coords = Point{ 
-                    map_info[stop_name].lon,
-                    map_info[stop_name].lat
-                }; 
-                auto base_settings = Text{}
-                    .SetPoint(coords)
-                    .SetOffset(RenderSettings_.bus_label_offset)
-                    .SetFontSize(RenderSettings_.bus_label_font_size)
-                    .SetFontFamily("Verdana")
-                    .SetFontWeight("bold")
-                    .SetData(bus_name);
-
-                auto underlayer = base_settings;
-                underlayer
-                    .SetFillColor(RenderSettings_.underlayer_color)
-                    .SetStrokeColor(RenderSettings_.underlayer_color)
-                    .SetStrokeWidth(RenderSettings_.underlayer_width)
-                    .SetStrokeLineCap("round")
-                    .SetStrokeLineJoin("round");
-
-                auto main_text = base_settings;
-                main_text
-                    .SetFillColor(RenderSettings_.color_palette[cur_color_idx]);
-                
-                svg_doc.Add(underlayer);
-                svg_doc.Add(main_text);
-            };
-            add_stop(stops[0]);
-            if (!(iter->second.IsRoundTrip) && stops[0] != stops[stops.size() / 2]) {
-                add_stop(stops[stops.size() / 2]);
-            }
-            cur_color_idx = (cur_color_idx + 1) % RenderSettings_.color_palette.size();
-        }
-    }
-
-    void AddStopCirclesToSvg(MapInfo map_info, Svg::Document& svg_doc) {
-        using namespace Svg;
-        for (const auto& [stop_name, stop]: Stops) {
-            Point coords = Point{ 
-                map_info[stop_name].lon,
-                map_info[stop_name].lat
-            }; 
-            auto circle = Circle{}
-                .SetCenter(coords)
-                .SetRadius(RenderSettings_.stop_radius)
-                .SetFillColor("white");
-            svg_doc.Add(circle);
-        }
-    }
-    
-    void AddStopNamesToSvg(MapInfo map_info, Svg::Document& svg_doc) {
-        using namespace Svg;
-        for (const auto& [stop_name, stop]: Stops) {
-            Point coords = Point{ 
-                map_info[stop_name].lon,
-                map_info[stop_name].lat
-            }; 
-            auto base_sets = Text{}
-                .SetPoint(coords)
-                .SetOffset(RenderSettings_.stop_label_offset)
-                .SetFontSize(RenderSettings_.stop_label_font_size)
-                .SetFontFamily("Verdana")
-                .SetData(stop_name);
-
-            auto underlayer = base_sets;
-            underlayer
-                .SetFillColor(RenderSettings_.underlayer_color)
-                .SetStrokeColor(RenderSettings_.underlayer_color)
-                .SetStrokeWidth(RenderSettings_.underlayer_width)
-                .SetStrokeLineCap("round")
-                .SetStrokeLineJoin("round");
-
-            auto main_text = base_sets;
-            main_text
-                .SetFillColor("black");
-            
-            svg_doc.Add(underlayer);
-            svg_doc.Add(main_text);
-        }
-    }
+    void AddPathsToSvg(MapInfo map_info, Svg::Document& svg_doc, Graph::Router<double>::RouteInfo& route_info);
+    void PathAddPolylinesToSvg(MapInfo map_info, Svg::Document& svg_doc, Graph::Router<double>::RouteInfo& route_info);
+    void PathAddBusesNamesToSvg(MapInfo map_info, Svg::Document& svg_doc, Graph::Router<double>::RouteInfo& route_info);
+    void PathAddStopCirclesToSvg(MapInfo map_info, Svg::Document& svg_doc, Graph::Router<double>::RouteInfo& route_info);
+    void PathAddStopNamesToSvg(MapInfo map_info, Svg::Document& svg_doc, Graph::Router<double>::RouteInfo& route_info);
 
     struct EdgeInfo {
         double Weight;

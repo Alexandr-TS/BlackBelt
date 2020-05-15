@@ -87,8 +87,6 @@ private:
     string Value;
 };
 
-Color NoneColor = Color();
-
 class Figure {
 public:
     void FigSetFillColor(const Color& color) {
@@ -124,11 +122,66 @@ public:
     }
 
 private:
-    Color FillColor = NoneColor;
-    Color StrokeColor = NoneColor;
+    Color FillColor = Color();
+    Color StrokeColor = Color();
     double StrokeWidth = 1.0;
     optional<string> StrokeLineCap = nullopt;
     optional<string> StrokeLineJoin = nullopt;
+};
+
+class Rectangle : public Figure {
+public:
+    Rectangle& SetPosition(Point point) {
+        Position = point;
+        return *this;
+    }
+
+    Rectangle& SetSize(int height, int width) {
+        Height = height;
+        Width = width;
+        return *this;
+    }
+
+
+    void Render(ostream& os) override {
+        os << "<rect ";
+        Figure::Render(os);
+        PrintKeyValue(os, "x", Position.x);
+        PrintKeyValue(os, "y", Position.y);
+        PrintKeyValue(os, "width", Width);
+        PrintKeyValue(os, "height", Height);
+        os << "/>";
+    }
+
+    Rectangle& SetFillColor(const Color& color) {
+        FigSetFillColor(color);
+        return *this;
+    }
+
+    Rectangle& SetStrokeColor(const Color& color) {
+        FigSetStrokeColor(color);
+        return *this;
+    }
+
+    Rectangle& SetStrokeWidth(double width) {
+        FigSetStrokeWidth(width);
+        return *this;
+    }
+
+    Rectangle& SetStrokeLineCap(const string& stroke_line_cap) {
+        FigSetStrokeLineCap(stroke_line_cap);
+        return *this;
+    }
+
+    Rectangle& SetStrokeLineJoin(const string& stroke_line_join) {
+        FigSetStrokeLineJoin(stroke_line_join);
+        return *this;
+    }
+
+private:
+    Point Position;
+    int Height;
+    int Width;
 };
 
 class Circle: public Figure {
@@ -324,6 +377,9 @@ public:
     }
     void Add(Text text) {
         Figures.push_back(make_unique<Text>(text));
+    }
+    void Add(Rectangle rect) {
+        Figures.push_back(make_unique<Rectangle>(rect));
     }
 
     void Render(ostream& os) {
