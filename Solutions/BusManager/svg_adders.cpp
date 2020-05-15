@@ -178,29 +178,183 @@ void BusManager::PathAddPolylinesToSvg(MapInfo map_info, Svg::Document& svg_doc,
         cur_color_idx = (cur_color_idx + 1) % RenderSettings_.color_palette.size();
     }
 
-	for (size_t i = 0; i < route_info.edge_count; ++i) {
-		auto edge_id = RouteBuilder->GetRouteEdge(route_info.id, i);
+    for (size_t i = 0; i < route_info.edge_count; ++i) {
+        auto edge_id = RouteBuilder->GetRouteEdge(route_info.id, i);
+        string bus_name = Edges[edge_id].BusName;
+        string stop_from = Edges[edge_id].StopFrom;
+        string stop_to = Edges[edge_id].StopTo;
+        int span_count = Edges[edge_id].SpanCount;
+        auto& stops = Buses[bus_name].Stops;
+        vector<string> stop_names;
+        for (size_t i = 0; i < stops.size(); ++i) {
+            if (stops[i] == stop_from && i + span_count < stops.size() && stops[i + span_count] == stop_to) {
+                for (size_t j = i; j <= i + span_count; ++j) {
+                    stop_names.push_back(stops[j]);
+                }
+                break;
+            }
+            else if (stops[i] == stop_to && i + span_count < stops.size() && stops[i + span_count] == stop_from) {
+                for (int j = static_cast<int>(i + span_count); j >= static_cast<int>(i); --j) {
+                    stop_names.push_back(stops[j]);
+                }
+                break;
+            }
+        }
+        assert(!stop_names.empty());
         Polyline line = line_by_bus[Edges[edge_id].BusName];
-        line.AddPoint({
-            map_info[Edges[edge_id].StopFrom].lon,
-            map_info[Edges[edge_id].StopFrom].lat
-        });
-        line.AddPoint({
-            map_info[Edges[edge_id].StopTo].lon,
-            map_info[Edges[edge_id].StopTo].lat
-        });
+        for (auto& stop_name : stop_names) {
+			Point coords = Point{
+				map_info[stop_name].lon,
+				map_info[stop_name].lat
+			};
+            line.AddPoint(coords);
+        }
         svg_doc.Add(line);
-	}
+    }
+
 }
 
 void BusManager::PathAddBusesNamesToSvg(MapInfo map_info, Svg::Document& svg_doc, Graph::Router<double>::RouteInfo& route_info) {
+    using namespace Svg;
 
+    map<pair<string, string>, Text> main_text_by_bus_and_stop;
+    map<pair<string, string>, Text> underlayer_by_bus_and_stop; 
+    size_t cur_color_idx = 0;
+    for (auto iter = Buses.begin(); iter != Buses.end(); ++iter) {
+        string bus_name = iter->first;
+        const auto& stops = iter->second.Stops;
+        auto add_stop = [&](const string& stop_name) {
+            Point coords = Point{
+                map_info[stop_name].lon,
+                map_info[stop_name].lat
+            };
+            auto base_settings = Text{}
+                .SetPoint(coords)
+                .SetOffset(RenderSettings_.bus_label_offset)
+                .SetFontSize(RenderSettings_.bus_label_font_size)
+                .SetFontFamily("Verdana")
+                .SetFontWeight("bold")
+                .SetData(bus_name);
+
+            auto underlayer = base_settings;
+            underlayer
+                .SetFillColor(RenderSettings_.underlayer_color)
+                .SetStrokeColor(RenderSettings_.underlayer_color)
+                .SetStrokeWidth(RenderSettings_.underlayer_width)
+                .SetStrokeLineCap("round")
+                .SetStrokeLineJoin("round");
+
+            auto main_text = base_settings;
+            main_text
+                .SetFillColor(RenderSettings_.color_palette[cur_color_idx]);
+
+            main_text_by_bus_and_stop[make_pair(bus_name, stop_name)] = main_text;
+            underlayer_by_bus_and_stop[make_pair(bus_name, stop_name)] = underlayer;
+        };
+        add_stop(stops[0]);
+        if (!(iter->second.IsRoundTrip) && stops[0] != stops[stops.size() / 2]) {
+            add_stop(stops[stops.size() / 2]);
+        }
+        cur_color_idx = (cur_color_idx + 1) % RenderSettings_.color_palette.size();
+    }
+
+
+    for (size_t i = 0; i < route_info.edge_count; ++i) {
+        auto edge_id = RouteBuilder->GetRouteEdge(route_info.id, i);
+        string bus_name = Edges[edge_id].BusName;
+        string stop1 = Edges[edge_id].StopFrom;
+        string stop2 = Edges[edge_id].StopTo;
+        if (main_text_by_bus_and_stop.count(make_pair(bus_name, stop1))) {
+            svg_doc.Add(underlayer_by_bus_and_stop[make_pair(bus_name, stop1)]);
+            svg_doc.Add(main_text_by_bus_and_stop[make_pair(bus_name, stop1)]);
+        }
+        if (main_text_by_bus_and_stop.count(make_pair(bus_name, stop2))) {
+            svg_doc.Add(underlayer_by_bus_and_stop[make_pair(bus_name, stop2)]);
+            svg_doc.Add(main_text_by_bus_and_stop[make_pair(bus_name, stop2)]);
+        }
+	}
 }
 
 void BusManager::PathAddStopCirclesToSvg(MapInfo map_info, Svg::Document& svg_doc, Graph::Router<double>::RouteInfo& route_info) {
+    using namespace Svg;
+	auto circle = Circle{}
+		.SetRadius(RenderSettings_.stop_radius)
+		.SetFillColor("white");
 
+    for (size_t i = 0; i < route_info.edge_count; ++i) {
+        auto edge_id = RouteBuilder->GetRouteEdge(route_info.id, i);
+        string bus_name = Edges[edge_id].BusName;
+        string stop_from = Edges[edge_id].StopFrom;
+        string stop_to = Edges[edge_id].StopTo;
+        int span_count = Edges[edge_id].SpanCount;
+        auto& stops = Buses[bus_name].Stops;
+        vector<string> stop_names;
+        for (size_t i = 0; i < stops.size(); ++i) {
+            if (stops[i] == stop_from && i + span_count < stops.size() && stops[i + span_count] == stop_to) {
+                for (size_t j = i; j <= i + span_count; ++j) {
+                    stop_names.push_back(stops[j]);
+                }
+                break;
+            }
+            else if (stops[i] == stop_to && i + span_count < stops.size() && stops[i + span_count] == stop_from) {
+                for (int j = static_cast<int>(i + span_count); j >= static_cast<int>(i); --j) {
+                    stop_names.push_back(stops[j]);
+                }
+                break;
+            }
+        }
+        assert(!stop_names.empty());
+        for (auto& stop_name : stop_names) {
+			Point coords = Point{
+				map_info[stop_name].lon,
+				map_info[stop_name].lat
+			};
+            circle.SetCenter(coords);
+            svg_doc.Add(circle);
+        }
+    }
 }
 
 void BusManager::PathAddStopNamesToSvg(MapInfo map_info, Svg::Document& svg_doc, Graph::Router<double>::RouteInfo& route_info) {
+    using namespace Svg;
+    auto base_sets = Text{}
+        .SetOffset(RenderSettings_.stop_label_offset)
+        .SetFontSize(RenderSettings_.stop_label_font_size)
+        .SetFontFamily("Verdana");
 
+	auto underlayer = base_sets;
+	underlayer
+		.SetFillColor(RenderSettings_.underlayer_color)
+		.SetStrokeColor(RenderSettings_.underlayer_color)
+		.SetStrokeWidth(RenderSettings_.underlayer_width)
+		.SetStrokeLineCap("round")
+		.SetStrokeLineJoin("round");
+
+	auto main_text = base_sets;
+	main_text
+		.SetFillColor("black");
+
+    vector<string> stop_names;
+    for (size_t i = 0; i < route_info.edge_count; ++i) {
+        auto edge_id = RouteBuilder->GetRouteEdge(route_info.id, i);
+        string bus_name = Edges[edge_id].BusName;
+        string stop_from = Edges[edge_id].StopFrom;
+        string stop_to = Edges[edge_id].StopTo;
+        if (stop_names.empty()) {
+            stop_names.push_back(stop_from);
+        }
+        stop_names.push_back(stop_to);
+    }
+    for (auto& stop_name : stop_names) {
+		Point coords = Point{
+			map_info[stop_name].lon,
+			map_info[stop_name].lat
+		};
+		main_text.SetPoint(coords);
+		main_text.SetData(stop_name);
+		underlayer.SetPoint(coords);
+		underlayer.SetData(stop_name);
+		svg_doc.Add(underlayer);
+		svg_doc.Add(main_text);
+	}
 }

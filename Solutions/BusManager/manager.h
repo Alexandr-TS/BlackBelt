@@ -258,10 +258,12 @@ public:
         svg_doc.Render(ss);
         auto raw_text = ss.str();
 
+        /*
         std::ofstream fout;
         fout.open("C:\\Users\\Admin\\source\\repos\\BlackBelt\\Solutions\\BusManager\\map.svg");
         fout << raw_text << endl;
         fout.close();
+        */
 
         string added_slashes = "";
         for (const auto ch: raw_text) {

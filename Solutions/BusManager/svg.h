@@ -146,10 +146,10 @@ public:
     void Render(ostream& os) override {
         os << "<rect ";
         Figure::Render(os);
-        PrintKeyValue(os, "x", Position.x);
-        PrintKeyValue(os, "y", Position.y);
-        PrintKeyValue(os, "width", Width);
-        PrintKeyValue(os, "height", Height);
+        PrintKeyValue(os, "x", fix(Position.x));
+        PrintKeyValue(os, "y", fix(Position.y));
+        PrintKeyValue(os, "width", fix(Width));
+        PrintKeyValue(os, "height", fix(Height));
         os << "/>";
     }
 
@@ -180,8 +180,13 @@ public:
 
 private:
     Point Position;
-    int Height;
-    int Width;
+    double Height;
+    double Width;
+
+    double fix(double val) {
+        if (abs(val) < 1e-9) return 0.0;
+        return val;
+    }
 };
 
 class Circle: public Figure {
